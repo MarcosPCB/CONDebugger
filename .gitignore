@@ -1,0 +1,9 @@
+*.exe
+node_modules
+*.lock
+*.log
+*.cfg
+*.cache
+texturecache
+*.index
+GAME.CON

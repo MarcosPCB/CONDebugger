@@ -1,0 +1,20 @@
+{
+  "name": "condebugger",
+  "version": "0.6.0",
+  "description": "Debugger for Eduke32 CON VM",
+  "main": "index.js",
+  "author": "ItsMarcos",
+  "license": "MIT",
+  "scripts": {
+    "dev": "IS_DEV=true ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/main.ts -bin eduke32",
+    "dev-win": "ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/main.ts -bin eduke32.exe",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@types/node": "^22.9.1",
+    "ffi-napi": "^4.0.3",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
