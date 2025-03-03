@@ -25,6 +25,7 @@ const helpText = `
 
 \x1b[1;34mInformation & Debugging:\x1b[0m
   \x1b[1;36mprint-lines [n]\x1b[0m → Displays the last n lines of execution (default: 6).
+  \x1b[1;36mprint-line [n]\x1b[0m → Displays the current line of execution.
   \x1b[1;36mprint-var <name> [type]\x1b[0m → Prints the value of a game variable.
   \x1b[1;36mprint-array <name> <index>\x1b[0m → Prints the value of a game array at a given index.
   \x1b[1;36mdump-vars\x1b[0m → Calls Gv_DumpValues(), dumping all variable values (-log enabled).
@@ -63,6 +64,7 @@ async function Prompt(dbg: GDBDebugger) {
         let args: string[] = [];
 
         e += ' ';
+        let cont: boolean;
 
         switch(e.slice(0, e.indexOf(' '))) {
             case `set-err`:
@@ -82,17 +84,25 @@ async function Prompt(dbg: GDBDebugger) {
                 break;
 
             case 'break-line':
+                cont = dbg.paused;
+
                 await dbg.pause();
                 args = e.slice(String('break-line').length + 1, e.length).split(' ');
                 await dbg.SetBreakpointAtLine(args[0], Number(args[1]));
-                dbg.sendCommand('-exec-continue');
+
+                if(!cont)
+                    dbg.sendCommand('-exec-continue');
                 break;
 
             case 'clear-break-line':
+                cont = dbg.paused;
+
                 await dbg.pause();
                 args = e.slice(String('clear-break-line').length + 1, e.length).split(' ');
                 await dbg.UnsetBreakpointAtLine(args[0], Number(args[1]));
-                dbg.sendCommand('-exec-continue');
+
+                if(!cont)
+                    dbg.sendCommand('-exec-continue');
                 break;
 
             case 'list-files':
@@ -132,6 +142,12 @@ async function Prompt(dbg: GDBDebugger) {
                 await dbg.PrintWhereItStopped(num_lines);
                 break;
 
+            case 'print-line': 
+                await dbg.pause();
+        
+                await dbg.PrintWhereItStopped(1);
+                break;
+
             case 'print-var': 
                 await dbg.pause();
                 args = e.slice(String('print-var').length + 1, e.length).split(' ');
@@ -166,7 +182,7 @@ async function Prompt(dbg: GDBDebugger) {
                 break;
 
             case `con`:
-                let cont = dbg.paused;
+                cont = dbg.paused;
                 
                 await dbg.pause();
                 if(!cont)

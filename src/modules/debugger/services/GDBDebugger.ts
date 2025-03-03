@@ -107,7 +107,7 @@ export default class GDBDebugger {
             this.ready = true;
 
             if(this.buffer.includes(`SIGTRAP`) && !this.forced_stop) {
-              this.Data(`"g_tw >> 12"`).then(async () => {
+              this.Data(`"(g_tw & ~(1 << 31)) >> 12"`).then(async () => {
                 const line = Number(this.getJSONObj('^done').value);
 
                 await this.Data('"(insptr - apScript)"');
@@ -124,10 +124,12 @@ export default class GDBDebugger {
 
                 if(bp == -1) {
                   console.log(`\x1b[1;33mStopped in line ${line} at ${this.scriptFilenames[i]}\x1b[0m`);
+                  this.PrintWhereItStopped(1);
                   return;
                 }
 
-                console.log(`\x1b[1;33mBreakpoint ${bp}: line ${line} at ${this.scriptFilenames[i]}\x1b[0m`)
+                console.log(`\x1b[1;33mBreakpoint ${bp}: line ${line} at ${this.scriptFilenames[i]}\x1b[0m`);
+                this.PrintWhereItStopped(1);
               })
             }
         }
@@ -168,7 +170,6 @@ export default class GDBDebugger {
   }
 
   public async getInferiorPIDAsJson(): Promise<string> {
-    console.log('Fetching inferiors in JSON format...');
     await this.sendCommand(`-list-thread-groups`);
     
     const obj = this.getJSONObj('^done').groups;
@@ -177,7 +178,7 @@ export default class GDBDebugger {
 
     // Parse output as JSON format
     if (obj[0].pid) {
-        console.log('Inferior PID JSON:', obj[0].pid);
+        console.log('Inferior PID:', obj[0].pid);
         this.pid = obj[0].pid;
         return obj[0].pid;
     } else {
@@ -220,17 +221,31 @@ export default class GDBDebugger {
 
     if(found == -1) {
       console.log(`File ${file} is not part of the source code`);
-      return;
+      return false;
     }
 
     const content = this.GetScriptContent(found).split('\n');
 
     if(line >= content.length) {
       console.log(`File ${file} only goes to line ${content.length - 1}`);
-      return;
+      return false;
     }
 
-    await this.sendCommand('-data-evaluate-expression ' + `"VM_CONSetDebugLine(${line}, \\\"${file}\\\")"`);
+    await this.Data(`"VM_CONCheckDebugLine(${line}, \\\"${file}\\\")"`);
+    let result = this.getJSONObj('^done').value;
+
+    if(result == `false`) {
+      console.log(`Line ${line} from ${file} is not debuggable`);
+      return false;
+    }
+
+    await this.Data(`"VM_CONSetDebugLine(${line}, \\\"${file}\\\")"`);
+    result = this.getJSONObj('^done').value;
+
+    if(result == `false`) {
+      console.log(`Unable to break line ${line} from ${file}`);
+      return false;
+    }
 
     this.bps_line.push({
       file,
@@ -238,6 +253,7 @@ export default class GDBDebugger {
     });
 
     console.log(`\x1b[1;32mAdded breakpoint in line: ${line} at file: ${file}\x1b[0m`);
+    return true;
   }
 
   public async UnsetBreakpointAtLine(file: string, line: number) {
@@ -250,13 +266,22 @@ export default class GDBDebugger {
 
     if(!index) {
       console.log('No break point was found for line: ' + line + ' at file: ' + file);
-      return;
+      return false;
     }
 
-    await this.sendCommand('-data-evaluate-expression ' + `"VM_CONUnsetDebugLine(${line}, \\\"${file}\\\")"`);
+    await this.Data(`"VM_CONUnsetDebugLine(${line}, \\\"${file}\\\")"`);
+
+    let result = this.getJSONObj('^done').value;
+
+    if(result == `false`) {
+      console.log(`Unable to remove break line ${line} from ${file}`);
+      return false;
+    }
 
     this.bps_line.splice(index, 1);
     console.log(`\x1b[1;32mRemoved breakpoint in line: ${line} at file: ${file}\x1b[0m`);
+
+    return true;
   }
 
   public async RemoveAllLineBreapoints() {
@@ -350,7 +375,7 @@ export default class GDBDebugger {
 
   public async PrintWhereItStopped(num_lines = 6) {
     await this.sendCommand(`-data-evaluate-expression g_tw`);
-    const line = this.getJSONObj('^done').value >> 12;
+    const line = (Number(this.getJSONObj('^done').value) & ~(1 << 31)) >> 12;
 
     await this.sendCommand(`-data-evaluate-expression "(insptr - apScript)"`);
     const offset = Number(this.getJSONObj('^done').value);
@@ -604,6 +629,9 @@ export default class GDBDebugger {
   }
 
   public async stepInto() {
+    if(!this.forced_stop)
+      console.log(`Stepping...`);
+
     this.forced_stop = false;
     if(!this.cleared) {
       await this.wait();
@@ -615,9 +643,8 @@ export default class GDBDebugger {
       this.cleared = true;
     }
 
-    console.log(`Stepping...`);
-
-    this.sendCommand("-exec-continue");
+    await this.sendCommand("-exec-continue");
+    await this.PrintWhereItStopped(1);
   }
 
   public async stepOver() {
