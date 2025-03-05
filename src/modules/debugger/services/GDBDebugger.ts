@@ -1,6 +1,7 @@
 import { rejects } from "assert";
 import { spawn, ChildProcessWithoutNullStreams, execSync } from "child_process";
 import ffi from 'ffi-napi';
+import ref from 'ref-napi';
 import path from "path";
 import fs from 'fs';
 

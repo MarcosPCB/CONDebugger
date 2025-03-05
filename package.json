@@ -1,8 +1,8 @@
 {
-  "name": "condebugger",
+  "name": "condbg",
   "version": "0.6.0",
   "description": "Debugger for Eduke32 CON VM",
-  "main": "index.js",
+  "bin": "dist/main.js",
   "author": "ItsMarcos",
   "license": "MIT",
   "scripts": {
@@ -10,9 +10,22 @@
     "dev-win": "ts-node-dev --inspect --transpile-only --ignore-watch node_modules src/main.ts -bin eduke32.exe",
     "build": "tsc"
   },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": [
+      "node18-win-x64"
+    ],
+    "assets": [
+      "./node_modules/ffi-napi/**/*",
+      "./node_modules/ref-napi/**/*"
+    ],
+    "outputPath": "./"
+  },
   "dependencies": {
     "@types/node": "^22.9.1",
     "ffi-napi": "^4.0.3",
+    "pkg": "^5.8.1",
+    "ref-napi": "^3.0.3",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
