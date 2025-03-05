@@ -8,3 +8,4 @@ texturecache
 *.index
 GAME.CON
 dist
+*.zip
